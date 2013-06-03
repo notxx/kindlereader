@@ -37,6 +37,7 @@ try:
     from PIL import Image
 except ImportError:
     Image = None
+import re
 
 iswindows = 'win32' in sys.platform.lower() or 'win64' in sys.platform.lower()
 isosx = 'darwin' in sys.platform.lower()
@@ -214,7 +215,7 @@ TEMPLATES['toc.ncx'] = """<?xml version="1.0" encoding="UTF-8"?>
             <navPoint class="article" id="{{ feed_idx }}_{{ item['idx'] }}" playOrder="{{ item['idx'] }}">
               <navLabel><text>{{ escape(item['title']) }}</text></navLabel>
               <content src="content.html#article_{{ feed_idx }}_{{ item['idx'] }}" />
-              <mbp:meta name="description">{{ item['stripped'] }}</mbp:meta>
+              <mbp:meta name="description">{{ escape(item['stripped']) }}</mbp:meta>
               <mbp:meta name="author">{% if item['author'] %}{{ item['author'] }}{% end %}</mbp:meta>
             </navPoint>
             {% end %}
@@ -284,6 +285,10 @@ TEMPLATES['content.opf'] = """<?xml version="1.0" encoding="utf-8"?>
 </guide>
 </package>
 """
+
+PATTERN={}
+PATTERN['fivefilters']=r"<p><em>This entry passed through the Full-Text RSS service &mdash; if this is your content and you're reading it on someone else's site, please read the FAQ at fivefilters.org/content-only/faq.php#publishers. Five Filters recommends: 'You Say What You Like, Because They Like What You Say' -  http://www.medialens.org/index.php/alerts/alert-archive/alerts-2013/731-you-say-what-you-like-because-they-like-what-you-say.html</em></p>"
+PATTERN['fivefilters_pattern']=re.compile(PATTERN['fivefilters'])
 
 class KRConfig():
     '''提供封装好的配置'''
@@ -581,6 +586,10 @@ class feedDownloader(threading.Thread):
                         local_entry['content'], images = self.parse_summary(entry.content[0].value, entry.link)
                     except:
                         local_entry['content'], images = self.parse_summary(entry.summary, entry.link)
+
+                m = PATTERN['fivefilters_pattern'].search(local_entry['content'])
+                if m:
+                     local_entry['content']=local_entry['content'][:m.start()]
 
                 local_entry['stripped'] = ''.join(BeautifulSoup(local_entry['content'], convertEntities=BeautifulSoup.HTML_ENTITIES).findAll(text=True))[:200]
 
